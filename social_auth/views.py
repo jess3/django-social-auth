@@ -35,7 +35,7 @@ def complete_process(request, backend):
         return HttpResponseServerError('Incorrect authentication service')
 
     try:
-        user = backend.auth_complete()
+        user = backend.auth_complete(request=request)
     except ValueError, e:  # some Authentication error ocurred
         user = None
         error_key = getattr(settings, 'SOCIAL_AUTH_ERROR_KEY', None)

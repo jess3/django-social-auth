@@ -87,10 +87,12 @@ class SocialAuthBackend(ModelBackend):
         if not (self.name and kwargs.get(self.name) and 'response' in kwargs):
             return None
 
+        request = kwargs.get('request')
         response = kwargs.get('response')
         details = self.get_user_details(response)
         uid = self.get_user_id(details, response)
         is_new = False
+        old_user = None
         try:
             social_user = UserSocialAuth.objects.select_related('user')\
                                                 .get(provider=self.name,
@@ -113,10 +115,14 @@ class SocialAuthBackend(ModelBackend):
             # much intrusive
             if 'user' in kwargs and kwargs['user'] != social_user.user:
                 raise ValueError('Account already in use.')
+            if request.user:
+                old_user = request.user
+            else:
+                old_user = None
             user = social_user.user
 
         # Update user account data.
-        self.update_user_details(user, response, details, is_new)
+        self.update_user_details(user, response, details, is_new, old_user)
 
         # Update extra_data storage, unless disabled by setting
         if getattr(settings, 'SOCIAL_AUTH_EXTRA_DATA', True):
@@ -182,7 +188,7 @@ class SocialAuthBackend(ModelBackend):
         """Return default blank user extra data"""
         return ''
 
-    def update_user_details(self, user, response, details, is_new=False):
+    def update_user_details(self, user, response, details, is_new=False, old_user=None):
         """Update user details with (maybe) new data. Username is not
         changed if associating a new credential."""
         changed = False  # flag to track changes
@@ -210,7 +216,7 @@ class SocialAuthBackend(ModelBackend):
         signal_response = lambda (receiver, response): response
 
         kwargs = {'sender': self.__class__, 'user': user,
-                  'response': response, 'details': details}
+                  'response': response, 'details': details, "old_user": old_user }
         changed |= any(filter(signal_response, pre_update.send(**kwargs)))
 
         # Fire socialauth_registered signal on new user registration
