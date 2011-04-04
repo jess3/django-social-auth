@@ -92,7 +92,7 @@ class SocialAuthBackend(ModelBackend):
         details = self.get_user_details(response)
         uid = self.get_user_id(details, response)
         is_new = False
-        old_user = None
+        old_user = request.user
         try:
             social_user = UserSocialAuth.objects.select_related('user')\
                                                 .get(provider=self.name,
@@ -115,10 +115,6 @@ class SocialAuthBackend(ModelBackend):
             # much intrusive
             if 'user' in kwargs and kwargs['user'] != social_user.user:
                 raise ValueError('Account already in use.')
-            if request.user:
-                old_user = request.user
-            else:
-                old_user = None
             user = social_user.user
 
         # Update user account data.
